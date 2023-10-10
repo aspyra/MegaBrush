@@ -116,7 +116,34 @@ ISR(TIMER2_COMP_vect){
 
  //Iterrupt timer 2 overflow -> turn off mosfets
 ISR(TIMER2_OVF_vect){
-  pwm_L_off();
+  static uint16_t ppm = 0;
+
+  if(ppm_flag){
+    //load new PPM reading
+    cli();
+    ppm = ppm_reading;
+    ppm_flag = false;
+    
+    
+    //14500-34000
+    if(ppm < 14500){
+      pwm_L_on();
+      bitClear(TIMSK, OCIE2); //DON'T generate interrupt on compare match
+    }
+    else if(ppm > 34000){
+      
+      bitClear(TIMSK, OCIE2); //DON'T generate interrupt on compare match
+    }
+    else{
+      OCR2 = map(ppm, 14500, 34000, 0, 255);
+      bitSet(TIMSK, OCIE2); //generate interrupt on compare match
+    }
+    sei();
+    Serial.printf("PPM: %u %u\n", ppm, OCR2);
+  }
+  if(ppm >= 14500)
+    pwm_L_off();
+  
 }
 
 void pwm_setup(){
@@ -142,18 +169,5 @@ void setup(){
 }
 
 void loop(){
-  static uint16_t ppm = 0;
-  
-  if(ppm_flag){
-    //load new PPM reading
-    cli();
-    ppm = ppm_reading;
-    ppm_flag = false;
-    sei();
-    
-    //14500-34000
-    OCR2 = map(ppm, 14500, 34000, 0, 255);
-    Serial.printf("PPM: %u %u\n", ppm, OCR2);
-  }
 }
   
